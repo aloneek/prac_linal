@@ -32,13 +32,13 @@ prac_linal/
 
 | Кто | Пишет | Не трогает |
 |---|---|---|
-| A | `draft_A.md`, `code/block_a.py`, `figures/p01…` из своих пунктов | чужие draft/block |
-| B | `draft_B.md`, `code/block_b.py` | чужие draft/block |
-| C | `draft_C.md`, `code/block_c.py`, **`code/common.py`** | чужие draft/block |
-| Сборщик | `draft.md`, `report/` | — |
+| A (Альберт) | `draft_A.md`, `code/block_a.py`, **`code/common.py`** | чужие draft/block |
+| B (Слава) | `draft_B.md`, `code/block_b.py` | чужие draft/block |
+| C (Иван) | `draft_C.md`, `code/block_c.py` | чужие draft/block |
+| Сборщик (Альберт) | `draft.md`, `report/` | — |
 
 Нашёл ошибку у соседа — не правь сам, напиши ему (или комментарий в GitHub).
-Нужно поменять `common.py` — через Ивана.
+Нужно поменять `common.py` — через Альберта.
 
 ## 3. Установка (один раз)
 

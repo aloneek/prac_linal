@@ -11,13 +11,17 @@ sys.path.append('../../../template')
 from plotstyle import setup, save, axes_2d  # noqa: E402
 
 # --- Исходные данные (те же, что в draft.md) ---
-a = None  # TODO: выбрать вместе
-b = None
-c = None
-d = None
+a = 3
+b = -2
+c = 4
+d = 5
 
 # Вершины многоугольника, по столбцам: shape (2, n)
-POLYGON = None  # TODO
+# «Рыба»: A(-4,0) B(-2,1) C(0,1) D(1,0) E(3,3) F(3,-2) G(1,-1) H(-1,-2) I(-3,-1)
+POLYGON = np.array([
+    [-4, -2, 0, 1, 3,  3,  1, -1, -3],   # x
+    [ 0,  1, 1, 0, 3, -2, -1, -2, -1],   # y
+], dtype=float)
 
 
 def plot_transform(M, name, title=None):

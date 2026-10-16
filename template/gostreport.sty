@@ -1,0 +1,152 @@
+% gostreport.sty — оформление отчёта по ГОСТ 7.32-2017 (упрощённое)
+% Компилировать XeLaTeX. Шрифт Liberation Serif метрически совместим с Times New Roman.
+\ProvidesPackage{gostreport}
+
+\RequirePackage{polyglossia}
+\setmainlanguage{russian}
+\setotherlanguage{english}
+
+\RequirePackage{fontspec}
+\defaultfontfeatures{Ligatures=TeX}
+\setmainfont{Liberation Serif}
+\setsansfont{Liberation Sans}
+\setmonofont{DejaVu Sans Mono}[Scale=0.85,Mapping=]  %% Mapping= : прямые кавычки в коде
+
+\RequirePackage{amsmath,amssymb,amsfonts}
+\RequirePackage{mathtools}
+\RequirePackage{unicode-math}
+\setmathfont{DejaVu Math TeX Gyre}
+
+\RequirePackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
+%% --- защита от выхода текста за поля вёрстки ---
+\tolerance=1500
+\emergencystretch=3em
+\hbadness=10000
+
+\RequirePackage{setspace}
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+
+\RequirePackage{graphicx}
+\RequirePackage{float}
+\RequirePackage{booktabs}
+\RequirePackage{longtable}
+\RequirePackage{array}
+\RequirePackage{multirow}
+\RequirePackage{enumitem}
+\setlist{nosep,topsep=4pt}
+
+% --- подписи: "Рисунок 1 — Название", "Таблица 1 — Название" ---
+\RequirePackage{caption}
+\RequirePackage{subcaption}
+\captionsetup{labelsep=endash,justification=centering,font=normalsize}
+\captionsetup[table]{justification=raggedright,singlelinecheck=false}
+\captionsetup[lstlisting]{font={rm,normalsize},justification=raggedright,singlelinecheck=false}
+\addto\captionsrussian{\renewcommand{\figurename}{Рисунок}}
+\addto\captionsrussian{\renewcommand{\tablename}{Таблица}}
+
+% --- заголовки ---
+\RequirePackage{titlesec}
+\titleformat{\section}{\normalfont\bfseries\large}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\bfseries\normalsize}{\thesubsection}{1em}{}
+\titlespacing*{\section}{\parindent}{16pt}{12pt}
+\titlespacing*{\subsection}{\parindent}{12pt}{8pt}
+
+% --- содержание ---
+\RequirePackage{tocloft}
+\renewcommand{\cfttoctitlefont}{\hfill\bfseries\large}
+\renewcommand{\cftaftertoctitle}{\hfill}
+\setcounter{tocdepth}{2}
+
+% --- листинги кода ---
+\RequirePackage{listings}
+\RequirePackage{xcolor}
+\definecolor{codegray}{gray}{0.95}
+\definecolor{codekw}{RGB}{0,0,160}
+\definecolor{codecm}{RGB}{80,120,80}
+\definecolor{codestr}{RGB}{160,60,60}
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecm}\itshape,
+  stringstyle=\color{codestr},
+  backgroundcolor=\color{codegray},
+  numbers=left, numberstyle=\tiny\color{gray}, numbersep=8pt,
+  breaklines=true, breakatwhitespace=false,
+  columns=fullflexible, keepspaces=true,
+  showstringspaces=false,
+  frame=single, framerule=0.4pt, rulecolor=\color{gray},
+  extendedchars=true, inputencoding=utf8,
+  captionpos=b,
+  %% кириллица в комментариях: без этого listings переставляет знаки
+  %% препинания относительно русских слов: (пункт 1) -> пункт( 1)
+  literate={(}{{(}}1{)}{{)}}1{,}{{,}}1{.}{{.}}1{:}{{:}}1{;}{{;}}1{!}{{!}}1{?}{{?}}1{«}{{«}}1{»}{{»}}1{—}{{—}}1{+}{{+}}1{=}{{=}}1{/}{{/}}1{[}{{[}}1{]}{{]}}1
+}
+\lstdefinestyle{py}{language=Python}
+\lstdefinestyle{m}{language=Matlab}
+\renewcommand{\lstlistingname}{Листинг}
+
+\RequirePackage[unicode,hidelinks]{hyperref}
+
+% --- нумерация страниц: снизу по центру, титул без номера ---
+% --- ненумерованные разделы (введение, заключение, приложения) ---
+\newcommand{\unnumsection}[1]{%
+  \section*{#1}\addcontentsline{toc}{section}{#1}}
+
+\RequirePackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% --- удобные сокращения для матриц ---
+\newcommand{\mat}[1]{\ensuremath{\boldsymbol{#1}}}
+\newcommand{\vect}[1]{\ensuremath{\boldsymbol{#1}}}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\spn}{Span}
+\DeclareMathOperator{\Imm}{Im}
+\DeclareMathOperator{\Ker}{Ker}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\diag}{diag}
+
+% --- титульный лист ---
+% \makegosttitle{номер}{название}{исполнители}{преподаватель}
+% #3 --- блок исполнителей, по строке на человека, группа указывается у каждого:
+%     студент группы R3243 Осипов А.\,П.\\[4pt]
+%     студент группы R3238 Федорец Л.\,Б.
+\newcommand{\makegosttitle}[4]{%
+\begin{titlepage}
+\centering
+\setstretch{1.1}
+{\normalsize МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\par}
+\vspace{6pt}
+{\normalsize Федеральное государственное автономное образовательное учреждение\\
+высшего образования\par}
+\vspace{6pt}
+{\bfseries\normalsize «НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ ИТМО»\par}
+\vspace{2pt}
+{\normalsize (Университет ИТМО)\par}
+\vfill
+{\Large\bfseries ОТЧЁТ\par}
+\vspace{8pt}
+{\large по лабораторной работе №#1\par}
+\vspace{8pt}
+{\large\bfseries «#2»\par}
+\vspace{8pt}
+{\large по дисциплине «Практическая линейная алгебра»\par}
+\vfill
+\begin{flushright}
+\begin{minipage}{0.62\textwidth}
+\setstretch{1.2}
+\raggedright
+\textbf{Выполнили:}\\[4pt]
+#3\\[14pt]
+\textbf{Проверил:}\\[4pt]
+#4
+\end{minipage}
+\end{flushright}
+\vfill
+{\normalsize Санкт-Петербург\\\the\year\par}
+\end{titlepage}
+\setcounter{page}{2}
+}

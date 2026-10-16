@@ -1,0 +1,52 @@
+% Шаблон отчёта. Компилировать: xelatex report.tex (дважды, ради содержания)
+\documentclass[a4paper,14pt]{extarticle}
+\usepackage{../../../template/gostreport}
+
+\begin{document}
+
+\makegosttitle
+  {1}                                   % номер работы
+  {Кодирование и шифрование}            % название работы
+  {студент группы R3243 Осипов А.\,П.\\[4pt]
+   студент группы R3238 Федорец Л.\,Б.}  % исполнители, по строке на человека
+  {Догадин Е.\,В.}                      % преподаватель
+
+\tableofcontents
+\newpage
+
+\unnumsection{Введение}
+
+Кратко: что за работа, какие инструменты применяются, какая цель.
+
+\section{Задание 1. Название}
+
+Текст, расчёты, обоснования.
+
+\begin{equation}
+  \mat{A} = \begin{pmatrix} a & b \\ c & d \end{pmatrix},
+  \qquad \det \mat{A} = ad - bc.
+\end{equation}
+
+Результат преобразования показан на рисунке~\ref{fig:example}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{../figures/example.pdf}
+  \caption{Пример подписи к рисунку}
+  \label{fig:example}
+\end{figure}
+
+\subsection*{Вывод по заданию 1}
+
+Не пересказ действий, а анализ: почему результат такой, что он означает.
+
+\unnumsection{Заключение}
+
+Общий вывод по работе.
+
+\newpage
+\unnumsection{Приложение А. Код}
+
+\lstinputlisting[style=py,caption={Решение задания 1},label={lst:task1}]{../code/task1.py}
+
+\end{document}

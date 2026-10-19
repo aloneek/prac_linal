@@ -6,9 +6,18 @@
 """
 import sys
 import numpy as np
+import matplotlib.pyplot as plt
 
-sys.path.append('../../../template')
+import os
+
+# Пути считаем от этого файла, а не от папки, откуда запущен python:
+# так код работает и из code/, и по кнопке Run в VS Code из корня репо.
+HERE = os.path.dirname(os.path.abspath(__file__))
+FIG_DIR = os.path.join(HERE, '..', 'figures')
+sys.path.append(os.path.join(HERE, '..', '..', '..', 'template'))
 from plotstyle import setup, save, axes_2d  # noqa: E402
+
+setup()
 
 # --- Исходные данные (те же, что в draft.md) ---
 a = 3
@@ -32,4 +41,41 @@ def plot_transform(M, name, title=None):
     Интерфейс зафиксирован — остальные уже пишут код под него.
     Реализация — Альберт.
     """
-    raise NotImplementedError
+    # asarray заодно превращает np.matrix и списки в обычный массив
+    M = np.asarray(M, dtype=float)
+    if M.shape != (2, 2):
+        raise ValueError(f'plot_transform: нужна матрица 2×2, пришла {M.shape}')
+
+    new = M @ POLYGON
+    # Повторяем первую вершину в конце, чтобы контур замкнулся
+    old_closed = np.hstack([POLYGON, POLYGON[:, :1]])
+    new_closed = np.hstack([new, new[:, :1]])
+
+    # Общие симметричные пределы: обе фигуры целиком, с запасом 15%
+    L = 1.15 * np.abs(np.hstack([POLYGON, new])).max()
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.plot(old_closed[0], old_closed[1], label='исходная')
+    ax.plot(new_closed[0], new_closed[1], label='образ')
+
+    # Собственные векторы — столбцы vecs; комплексные λ (поворот) пропускаем
+    lams, vecs = np.linalg.eig(M)
+    t = np.linspace(-L, L, 2)
+    for i in range(2):
+        if not np.isreal(lams[i]):
+            continue
+        v = vecs[:, i].real
+        ax.plot(t * v[0], t * v[1], '--', linewidth=1.2,
+                label=f'λ = {lams[i].real:.2f}')
+
+    axes_2d(ax, lim=L)
+    if title:
+        ax.set_title(title)
+    ax.legend(loc='best', fontsize=9)
+    save(fig, name, figures_dir=FIG_DIR)
+    plt.close(fig)
+
+
+if __name__ == '__main__':
+    plot_transform(np.array([[1, 2], [3, 5]]), 'test')
+    plot_transform(np.array([[0, -1], [1, 0]]), 'test_rot', title='поворот на 90°')

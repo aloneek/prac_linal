@@ -1,3 +1,8 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:system"
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    // Pylance не выполняет sys.path.append из кода, поэтому пути подсказываем ему здесь
+    "python.analysis.extraPaths": [
+        "template",
+        "labs/lab02/code"
+    ]
 }

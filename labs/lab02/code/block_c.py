@@ -22,7 +22,7 @@ plot_transform(np.array([[np.cos(np.pi/6)*np.sqrt(c), -np.sin(np.pi/6)*np.sqrt(c
 #10. Отображение, образованное недиагональной матрицей, которое переводит круг
 #единичной площади с центром в начале координат в некруг площади d.
 d=3
-plot_transform(np.array([[3, 8], [0, 1]]), "p10c", title="Пункт 10")
+plot_transform(np.array([[3, 8], [0, 1]]), "p10", title="Пункт 10")
 plot_transform(np.array([[3, 8], [0, 1]]), "p10c", title="Пункт 10",
                POLYGON=np.array([[np.cos(t)*np.sqrt(1/np.pi), np.sin(t)*np.sqrt(1/np.pi)] for t in np.linspace(0, 2*np.pi, 100)]).T)
 
@@ -43,5 +43,8 @@ plot_transform(B@A, "p15BA", title="Пункт 15")
 #были максимально непохожими друг на друга. Сделайте визуализацию, аналогичную предыдущему пункту.
 A=np.array([[1, 1], [0, 1]])
 B=np.array([[3, -2], [0, 3]])
+
+plot_transform(A, "p16A", title="Пункт 16")
+plot_transform(B, "p16B", title="Пункт 16")
 plot_transform(A@B, "p16AB", title="Пункт 16")
 plot_transform(B@A, "p16BA", title="Пункт 16")

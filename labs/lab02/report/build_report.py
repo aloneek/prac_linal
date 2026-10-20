@@ -41,7 +41,7 @@ def clean(md):
         for n in names:
             if n not in seen and os.path.exists(os.path.join(LAB, 'figures', n + '.pdf')):
                 seen.append(n)
-        return '\n\n'.join(f'![{CAPTIONS.get(n, n)}](figures/{n}.pdf)' for n in seen) or ''
+        return '\n\n' + '\n\n'.join(f'![{CAPTIONS.get(n, n)}](figures/{n}.pdf)' for n in seen) + '\n\n'
     md = re.sub(r'```python.*?```', code_to_figs, md, flags=re.S)
     return md
 
@@ -94,6 +94,10 @@ tex = re.sub(r'\\begin\{figure\}\s*\\centering\s*\\includegraphics(?:\[[^\]]*\])
 # «на рисунке p01» -> «на рисунке 1» со ссылкой
 tex = re.sub(r'(рисун\w*)\s+(p\d+\w*)', r'\1~\\ref{fig:\2}', tex)
 tex = tex.replace('\\begin{longtable}[]', '\\begin{longtable}')
+# широкие формулы ужимаем до ширины полосы (ГОСТ: ничего не вылезает за поля)
+tex = re.sub(r'\\\[(.*?)\\\]', lambda m: '\\begin{center}\\adjustbox{max width=\\linewidth}{$\\displaystyle ' + m.group(1).strip() + '$}\\end{center}', tex, flags=re.S)
+# сводная таблица: 5 колонок не влезают в l-колонки
+tex = tex.replace('\\begin{longtable}{@{}lllll@{}}', '\\small\\begin{longtable}{@{}p{1.3cm}p{5.0cm}p{2.8cm}p{2.8cm}p{2.8cm}@{}}').replace('\\end{longtable}', '\\end{longtable}\\normalsize')
 
 body_intro = intro or ('Цель работы --- изучить матрицы $2\\times 2$ как линейные отображения плоскости: '
                        'построить матрицы с заданными геометрическими свойствами, визуализировать их действие '
@@ -102,6 +106,7 @@ body_intro = intro or ('Цель работы --- изучить матрицы 
 doc = r'''\documentclass[a4paper,14pt]{extarticle}
 \usepackage{../../../template/gostreport}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{adjustbox}
 \usepackage{hyperref}
 \hypersetup{hidelinks}
 \begin{document}

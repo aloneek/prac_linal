@@ -33,7 +33,7 @@ POLYGON = np.array([
 ], dtype=float)
 
 
-def plot_transform(M, name, title=None):
+def plot_transform(M, name, title=None, POLYGON=POLYGON):
     """Нарисовать исходный POLYGON и его образ M @ POLYGON,
     добавить прямые вдоль вещественных собственных векторов M (если они есть),
     сохранить в figures/<name>.pdf через save().

@@ -1,4 +1,4 @@
-"""Собрать общий PDF заданий 1–5 из черновиков и кода команды.
+"""Собрать общий PDF заданий 1–8 из черновиков и кода команды.
 
 Запуск: python3 labs/lab03/report/build_report.py
 Нужен XeLaTeX или Tectonic; путь можно передать через --engine.
@@ -50,7 +50,17 @@ FIGURES = {
     "p4AB": (["p4AB"], r"Композиция поворотов: сначала $R_1$, затем $R_2$"),
     "p4BA": (["p4BA"], r"Композиция поворотов: сначала $R_2$, затем $R_1$"),
     "p5": (["p5"], r"Поворот вокруг оси через вершину $M=(1,1,1)$"),
+    "p6_views": (["p6_scene", "p6_bottom"], "Сцена из четырёх кубиков: стандартный ракурс и вид снизу"),
+    "p6_camera": (["p6_camera"], r"Камера $C$, её оси и направление взгляда в мировых координатах"),
+    "p6_inv": (["p6_inv", "p6_inv_bottom"], r"Сцена после $C^{-1}$: стандартный ракурс и вид камеры"),
+    "p7_compare": (["p7_iso", "p7_persp"], r"Вид камеры: изометрия $C^{-1}$ и перспектива $PC^{-1}$"),
+    "p7_deform1": (["p7_before1", "p7_after1"], r"Пространство до и после $P$, ракурс \texttt{view\_init(25, -60)}"),
+    "p7_deform2": (["p7_before2", "p7_after2"], r"Пространство до и после $P$, ракурс \texttt{view\_init(10, -120)}"),
+    "p8": (["p8_world", "p8_render"], "Домик из блоков: мировые координаты и кадр камеры с перспективой"),
 }
+
+FIGURES_68 = ["p6_scene", "p6_bottom", "p6_camera", "p6_inv", "p6_inv_bottom", "p7_iso", "p7_persp",
+              "p7_before1", "p7_after1", "p7_before2", "p7_after2", "p8_world", "p8_render"]
 
 
 def prepare_teammate_draft(source):
@@ -91,7 +101,7 @@ u_zu_xd-u_ys & u_zu_yd+u_xs & c+u_z^2d & 0 \\
 def figure(name):
     images, caption = FIGURES[name]
     out = [r"\begin{figure}[H]", r"\centering"]
-    width = "0.66" if name in {"p4A", "p4B", "p4AB", "p4BA"} else "0.72" if name == "p5" else "0.83" if len(images) == 1 else "0.49"
+    width = "0.66" if name in {"p4A", "p4B", "p4AB", "p4BA", "p6_camera"} else "0.72" if name == "p5" else "0.83" if len(images) == 1 else "0.49"
     for i, image in enumerate(images):
         if i == 2:
             out.append(r"\par\medskip")
@@ -134,7 +144,7 @@ def markdown(source, table_ids=None):
                 out.append(r"\end{minipage}\par")
                 samepage = False
             task = int(re.match(r"## Задание (\d+)", line)[1])
-            if task in {1, 4}:
+            if task in {1, 4, 6}:
                 out.append(r"\clearpage")
             out.append(r"\section{" + inline(line[3:]) + "}")
         elif line.startswith("### "):
@@ -192,7 +202,9 @@ def markdown(source, table_ids=None):
             converted = inline(line)
             for number, name in enumerate(FIGURES, 1):
                 converted = re.sub(rf"(рисунк[ае])\s+{number}\b", rf"\1~\\ref{{fig:{name}}}", converted)
-                converted = re.sub(rf"(рисунк[ае])\s+{name}\b", rf"\1~\\ref{{fig:{name}}}", converted)
+                # Имя в тексте уже экранировано inline(): p6_inv -> p6\_inv.
+                label = re.escape(name.replace("_", r"\_"))
+                converted = re.sub(rf"(рисунк[ае])\s+{label}\b", rf"\1~\\ref{{fig:{name}}}", converted)
             for number, name in enumerate(["p4A", "p4B", "p4AB", "p4BA"], 1):
                 converted = re.sub(rf"(таблиц[ае])\s+4\.{number}\b", rf"\1~\\ref{{tab:{name}}}", converted)
             out.append(converted)
@@ -254,6 +266,12 @@ def render_figures():
                 runpy.run_path(str(script))
             for name in ["p4A", "p4B", "p4AB", "p4BA", "p5"]:
                 shutil.copy2(Path(tmp) / "figures" / f"{name}.png", output / f"{name}.png")
+        # block_68.py импортирует функции из code/block_a.py и block_45.py,
+        # поэтому запускается на месте; его рисунки в figures/ перезаписываются им же.
+        with plt.rc_context({"font.size": 13}), contextlib.redirect_stdout(io.StringIO()):
+            runpy.run_path(str(LAB / "block_68.py"), run_name="__main__")
+        for name in FIGURES_68:
+            shutil.copy2(LAB / "figures" / f"{name}.png", output / f"{name}.png")
 
 
 def build_source(font_dir=None):
@@ -264,7 +282,9 @@ def build_source(font_dir=None):
     draft = (LAB / "draft_A.md").read_text()
     draft = draft[draft.index("## Задание 1."):]
     draft45 = prepare_teammate_draft((LAB / "draft_45.md").read_text())
-    body = markdown(draft) + "\n" + markdown(draft45, ["p4A", "p4B", "p4AB", "p4BA", "p5"])
+    draft68 = (LAB / "draft_68.md").read_text(encoding="utf-8")
+    body = (markdown(draft) + "\n" + markdown(draft45, ["p4A", "p4B", "p4AB", "p4BA", "p5"])
+            + "\n" + markdown(draft68, ["depth"]))
     font_config = ""
     if font_dir:
         directory = Path(font_dir).resolve()
@@ -301,27 +321,27 @@ def build_source(font_dir=None):
 \usepackage{adjustbox}
 \usepackage{etoolbox}
 \usepackage{fvextra}
-\hypersetup{pdftitle={ЛР3 — Матрицы в 3D-графике. Задания 1–5},pdfauthor={Осипов А. П.; Глазков В. Н.; Прохоревич И. Б.}}
+\hypersetup{pdftitle={ЛР3 — Матрицы в 3D-графике},pdfauthor={Осипов А. П.; Глазков В. Н.; Прохоревич И. Б.}}
 \begin{document}
 \makegosttitle{3}{Матрицы в 3D-графике}
 {студент группы R3243 Осипов А.\,П.\\[4pt]
 студент группы R3281 Глазков В.\,Н.\\[4pt]
-студент группы R3235 Прохоревич И.\,Б.\\[8pt]
-Промежуточная версия: задания 1--5}{Догадин Е.\,В.}
+студент группы R3235 Прохоревич И.\,Б.}{Догадин Е.\,В.}
 \tableofcontents
 \clearpage
 \unnumsection{Введение}
-В отчёте представлены задания 1--5 лабораторной работы №3: отрисовка фигур
+В отчёте представлены задания 1--8 лабораторной работы №3: отрисовка фигур
 в однородных координатах, масштабирование, перенос и вращение куба,
-сравнение порядка применения преобразований, поворот вокруг оси через вершину.
+сравнение порядка применения преобразований, поворот вокруг оси через вершину,
+матрица камеры, матрица перспективы и сцена-домик из блоков.
 Расчёты выполнены на Python с использованием NumPy, Matplotlib и SciPy.
-Все преобразования координат реализованы умножением на матрицы.
-Задания 6--7 о камере и перспективе в этой версии ещё не представлены.
+Все преобразования координат реализованы умножением на матрицы;
+Matplotlib используется только как ортографический отрисовщик.
 \unnumsection{Исходные данные}
 \begin{itemize}
 """ + data + "\n\\end{itemize}\n" + body + r"""
 \clearpage
-\unnumsection{Заключение по заданиям 1--5}
+\unnumsection{Заключение}
 Однородные координаты позволяют задавать масштабирование и перенос матрицами
 одного размера $4\times4$. Композиция выбранных масштабов восстанавливает
 размеры по $x$ и $z$, сохраняя растяжение по $y$. Два переноса складываются,
@@ -333,6 +353,15 @@ def build_source(font_dir=None):
 эквивалентную ось, хотя угол в рассмотренном случае совпадает.
 Композиция $T(M)R_v(\theta)T(-M)$ позволяет вращать фигуру вокруг оси
 через заданную точку, сохраняя точки этой оси неподвижными.
+Матрица камеры $C=T_cR_c$ задаёт её положение и ориентацию, а обратная
+$C^{-1}=R_c^TT(-\mathbf c)$ является движением: она записывает сцену
+в системе координат камеры, не меняя формы объектов.
+Матрица перспективы записывает глубину в четвёртую координату,
+а деление на неё уменьшает дальние объекты. Пирамида видимости при этом
+переходит в куб $[-1,1]^3$, кубы сцены — в усечённые пирамиды,
+глубина сжимается нелинейно с сохранением порядка.
+Цепочка $P\,C^{-1}M_{\text{model}}$ из произведений матриц $4\times4$
+позволила собрать и отрисовать домик из блоков с камерой и перспективой.
 \clearpage
 \unnumsection{Приложение А. Код блока A}
 \begingroup\setstretch{0.95}
@@ -346,6 +375,13 @@ numbersep=8pt,xleftmargin=14pt,frame=single]{../code/block_a.py}
 \VerbatimInput[breaklines,fontsize=\footnotesize,numbers=left,
 numbersep=8pt,xleftmargin=14pt,frame=single]{../block_45.py}
 \captionof{lstlisting}{Повороты вокруг оси через центр куба и через его вершину}
+\endgroup
+\clearpage
+\unnumsection{Приложение В. Код заданий 6--8}
+\begingroup\setstretch{0.95}
+\VerbatimInput[breaklines,fontsize=\footnotesize,numbers=left,
+numbersep=8pt,xleftmargin=14pt,frame=single]{../block_68.py}
+\captionof{lstlisting}{Камера, перспектива и домик из блоков}
 \endgroup
 \end{document}
 """

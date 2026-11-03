@@ -16,7 +16,27 @@
 - Код: `code/block_a.py`. Запуск из корня: `python3 labs/lab03/code/block_a.py`.
   Программа сохраняет четыре рисунка в `figures/*.png` и открывает окна графиков.
 - Текущий статус: черновик заданий 1–3 заполнен, код и расчёты проверены;
-  LaTeX/PDF-отчёт ещё не собран.
+  отчёт блока A — `report/report.pdf`, LaTeX-исходник — `report/report.tex`.
+
+### Сборка PDF блока A
+
+```bash
+python3 labs/lab03/report/build_report.py
+```
+
+Скрипт читает `draft.md` и `draft_A.md`, строит рисунки с крупными подписями
+по данным `code/block_a.py`, генерирует `report/report.tex` и собирает PDF.
+Нужен установленный XeLaTeX или Tectonic. Для движка вне `PATH`:
+
+```bash
+python3 labs/lab03/report/build_report.py --engine /путь/к/tectonic
+```
+
+Шрифты — как в общем шаблоне: Liberation Serif, Liberation Sans,
+DejaVu Sans Mono и DejaVu Math TeX Gyre. Если шрифты доступны файлами,
+но не установлены в системе, можно передать `--font-dir /путь/к/ttf`.
+После правок черновика нужно повторять сборку скриптом: `report.tex` генерируется заново.
+PDF содержит только задания 1–3, заключение по этому блоку и приложение с кодом.
 
 ## Чек-лист сдачи
 

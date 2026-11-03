@@ -1,15 +1,19 @@
-"""Собрать PDF блока A из draft.md, draft_A.md и данных block_a.py.
+"""Собрать общий PDF заданий 1–5 из черновиков и кода команды.
 
 Запуск: python3 labs/lab03/report/build_report.py
 Нужен XeLaTeX или Tectonic; путь можно передать через --engine.
 """
 
 import argparse
+import contextlib
 import importlib.util
+import io
 from pathlib import Path
 import re
+import runpy
 import shutil
 import subprocess
+import tempfile
 
 HERE = Path(__file__).resolve().parent
 LAB = HERE.parent
@@ -17,9 +21,12 @@ LAB = HERE.parent
 
 def inline(text):
     """Оформить используемое в черновике подмножество Markdown, сохранив математику."""
-    tokens = re.split(r"(\$[^$]+\$|`[^`]+`)", text)
+    tokens = re.split(r"(\*\*.+?\*\*|\$[^$]+\$|`[^`]+`)", text)
     result = []
     for token in tokens:
+        if token.startswith("**"):
+            result.append(r"\textbf{" + inline(token[2:-2]) + "}")
+            continue
         if token.startswith("$"):
             result.append(token)
             continue
@@ -38,13 +45,53 @@ FIGURES = {
     "p02_scaling": (["s1", "s2", "s21"], "Два масштаба и их композиция"),
     "p03_translation": (["t1", "t2", "t21"], "Два переноса и их композиция; исходный куб показан контуром"),
     "p03_order": (["order"], "Сравнение порядка применения масштабирования и переноса"),
+    "p4A": (["p4A"], r"Поворот на $90^\circ$ вокруг оси $v_1=(1,1,0)$"),
+    "p4B": (["p4B"], r"Поворот на $60^\circ$ вокруг оси $v_2=(0,1,1)$"),
+    "p4AB": (["p4AB"], r"Композиция поворотов: сначала $R_1$, затем $R_2$"),
+    "p4BA": (["p4BA"], r"Композиция поворотов: сначала $R_2$, затем $R_1$"),
+    "p5": (["p5"], r"Поворот вокруг оси через вершину $M=(1,1,1)$"),
 }
+
+
+def prepare_teammate_draft(source):
+    """Учесть проверенные опечатки и добавить метки ссылок, сохранив исходник коллеги."""
+    source = source.replace("0.376827", "0.376826").replace("0.0814", "0.0813")
+    source = source.replace("Угол поворота определяется следом матрицы:",
+                            "Угол поворота определяется следом верхнего левого блока $R$ размера $3\\times3$:")
+    source = source.replace(
+        "В развернутом виде матрица поворота вокруг произвольной оси, проходящей через начало координат, имеет вид",
+        r"Для компактной записи положим $c=\cos\theta$, $s=\sin\theta$, $d=1-c$. "
+        "Матрица поворота вокруг произвольной оси, проходящей через начало координат, имеет вид",
+    )
+    compact = r"""R_u(\theta) =
+\begin{bmatrix}
+c+u_x^2d & u_xu_yd-u_zs & u_xu_zd+u_ys & 0 \\
+u_yu_xd+u_zs & c+u_y^2d & u_yu_zd-u_xs & 0 \\
+u_zu_xd-u_ys & u_zu_yd+u_xs & c+u_z^2d & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}."""
+    source = re.sub(r"R_u\(\\theta\) =\s*\\begin\{bmatrix\}.*?\\end\{bmatrix\}\.",
+                    lambda _: compact, source, count=1, flags=re.S)
+    def split_approximation(match):
+        body = match[1]
+        if body.count(r"\begin{bmatrix}") == 2 and body.count(r"\approx") == 1:
+            exact, approximate = body.split(r"\approx", 1)
+            return "$$\n\\begin{gathered}\n" + exact.strip() + r" \\[4pt]" + "\n\\approx " + approximate.strip() + "\n\\end{gathered}\n$$"
+        return match[0]
+    source = re.sub(r"\$\$\n(.*?)\n\$\$", split_approximation, source, flags=re.S)
+    for number, name in enumerate(["p4A", "p4B", "p4AB", "p4BA"], 1):
+        source = source.replace(
+            f"Результат показан на рисунке, координаты вершин приведены в таблице 4.{number}.",
+            f"Результат показан на рисунке {name}, координаты вершин приведены в таблице 4.{number}.",
+        )
+    source = source.replace("На рисунке показаны исходный кубик", "На рисунке p5 показаны исходный кубик")
+    return source
 
 
 def figure(name):
     images, caption = FIGURES[name]
     out = [r"\begin{figure}[H]", r"\centering"]
-    width = "0.83" if len(images) == 1 else "0.49"
+    width = "0.66" if name in {"p4A", "p4B", "p4AB", "p4BA"} else "0.72" if name == "p5" else "0.83" if len(images) == 1 else "0.49"
     for i, image in enumerate(images):
         if i == 2:
             out.append(r"\par\medskip")
@@ -55,10 +102,14 @@ def figure(name):
     return "\n".join(out)
 
 
-def markdown(source):
+def markdown(source, table_ids=None):
     """Конвертер только форматов, используемых в черновике этого блока."""
     lines = source.splitlines()
     out, i, table_index, samepage = [], 0, 0, False
+    table_ids = table_ids or ["scale_sizes", "transform_order"]
+    pending_caption = None
+    task = None
+    rotation_results = False
     while i < len(lines):
         line = lines[i]
         if line.strip() == "$$":
@@ -82,7 +133,8 @@ def markdown(source):
             if samepage:
                 out.append(r"\end{minipage}\par")
                 samepage = False
-            if line.startswith("## Задание 1."):
+            task = int(re.match(r"## Задание (\d+)", line)[1])
+            if task in {1, 4}:
                 out.append(r"\clearpage")
             out.append(r"\section{" + inline(line[3:]) + "}")
         elif line.startswith("### "):
@@ -90,6 +142,29 @@ def markdown(source):
                 out.append(r"\par\noindent\begin{minipage}{\linewidth}")
                 samepage = True
             out.append(r"\subsection*{" + inline(line[4:]) + "}")
+        elif re.fullmatch(r"\*\*.*\*\*", line):
+            heading = line[2:-2]
+            if heading == "Результаты выполнения программы" and task == 4:
+                rotation_results = True
+            elif heading == "Анализ полученных результатов":
+                rotation_results = False
+            elif rotation_results and heading.startswith(("Поворот вокруг оси", "Композиция")):
+                out.append(r"\clearpage")
+            if heading.startswith("Таблица — "):
+                pending_caption = heading.removeprefix("Таблица — ")
+            elif heading == "Вывод":
+                out += [r"\par\noindent\begin{minipage}{\linewidth}",
+                        r"\subsection*{Вывод по заданию " + str(task) + "}"]
+                samepage = True
+            else:
+                out.append(r"\subsection*{" + inline(heading) + "}")
+        elif line.startswith("- "):
+            out.append(r"\begin{itemize}")
+            while i < len(lines) and lines[i].startswith("- "):
+                out.append(r"\item " + inline(lines[i][2:]))
+                i += 1
+            out.append(r"\end{itemize}")
+            continue
         elif line.startswith("|"):
             rows = []
             while i < len(lines) and lines[i].startswith("|"):
@@ -98,8 +173,10 @@ def markdown(source):
             if not re.fullmatch(r"[\s|:\-]+", "|".join(rows[1])):
                 raise ValueError("Неподдерживаемая таблица Markdown")
             table_index += 1
-            caption = ["Размеры куба после масштабирования", "Центры и размеры образов TS и ST"][table_index - 1]
-            out += [r"\begin{table}[H]\centering", r"\caption{" + caption + "}",
+            caption = pending_caption or ["Размеры куба после масштабирования", "Центры и размеры образов TS и ST"][table_index - 1]
+            pending_caption = None
+            out += [r"\begin{table}[H]\centering\singlespacing\small", r"\caption{" + inline(caption) + "}",
+                    r"\label{tab:" + table_ids[table_index - 1] + "}",
                     r"\begin{adjustbox}{max width=\linewidth}",
                     r"\begin{tabular}{" + "l" * len(rows[0]) + "}", r"\toprule",
                     " & ".join(inline(c) for c in rows[0]) + r" \\", r"\midrule"]
@@ -115,6 +192,9 @@ def markdown(source):
             converted = inline(line)
             for number, name in enumerate(FIGURES, 1):
                 converted = re.sub(rf"(рисунк[ае])\s+{number}\b", rf"\1~\\ref{{fig:{name}}}", converted)
+                converted = re.sub(rf"(рисунк[ае])\s+{name}\b", rf"\1~\\ref{{fig:{name}}}", converted)
+            for number, name in enumerate(["p4A", "p4B", "p4AB", "p4BA"], 1):
+                converted = re.sub(rf"(таблиц[ае])\s+4\.{number}\b", rf"\1~\\ref{{tab:{name}}}", converted)
             out.append(converted)
         i += 1
     if samepage:
@@ -165,6 +245,15 @@ def render_figures():
             text.set_fontsize(12)
         fig.savefig(output / "order.png", dpi=200)
         plt.close(fig)
+        # Скрипт коллеги рисует графики при запуске. Изолируем его выходные файлы,
+        # чтобы сборка не перезаписывала исходные figures/ из его коммита.
+        with tempfile.TemporaryDirectory(prefix="lab03-45-") as tmp:
+            script = Path(tmp) / "block_45.py"
+            shutil.copy2(LAB / "block_45.py", script)
+            with plt.rc_context({"font.size": 13, "figure.dpi": 180}), contextlib.redirect_stdout(io.StringIO()):
+                runpy.run_path(str(script))
+            for name in ["p4A", "p4B", "p4AB", "p4BA", "p5"]:
+                shutil.copy2(Path(tmp) / "figures" / f"{name}.png", output / f"{name}.png")
 
 
 def build_source(font_dir=None):
@@ -174,6 +263,8 @@ def build_source(font_dir=None):
                      for line in data.strip().splitlines())
     draft = (LAB / "draft_A.md").read_text()
     draft = draft[draft.index("## Задание 1."):]
+    draft45 = prepare_teammate_draft((LAB / "draft_45.md").read_text())
+    body = markdown(draft) + "\n" + markdown(draft45, ["p4A", "p4B", "p4AB", "p4BA", "p5"])
     font_config = ""
     if font_dir:
         directory = Path(font_dir).resolve()
@@ -210,35 +301,51 @@ def build_source(font_dir=None):
 \usepackage{adjustbox}
 \usepackage{etoolbox}
 \usepackage{fvextra}
-\patchcmd{\makegosttitle}{Выполнили:}{Выполнил:}{}{\errmessage{Не удалось оформить исполнителя}}
-\hypersetup{pdftitle={ЛР3 — Матрицы в 3D-графике. Блок A: задания 1–3},pdfauthor={Осипов А. П.}}
+\hypersetup{pdftitle={ЛР3 — Матрицы в 3D-графике. Задания 1–5},pdfauthor={Осипов А. П.; Глазков В. Н.; Прохоревич И. Б.}}
 \begin{document}
 \makegosttitle{3}{Матрицы в 3D-графике}
-{студент группы R3243 Осипов А.\,П.\\[8pt]
-Блок A: задания 1--3}{Догадин Е.\,В.}
+{студент группы R3243 Осипов А.\,П.\\[4pt]
+студент группы R3281 Глазков В.\,Н.\\[4pt]
+студент группы R3235 Прохоревич И.\,Б.\\[8pt]
+Промежуточная версия: задания 1--5}{Догадин Е.\,В.}
 \tableofcontents
 \clearpage
 \unnumsection{Введение}
-В отчёте представлен блок A лабораторной работы №3: отрисовка фигур
-в однородных координатах, масштабирование и перенос куба, сравнение
-порядка применения преобразований. Расчёты выполнены на Python с использованием
-NumPy и Matplotlib. Все преобразования координат реализованы умножением на матрицы.
+В отчёте представлены задания 1--5 лабораторной работы №3: отрисовка фигур
+в однородных координатах, масштабирование, перенос и вращение куба,
+сравнение порядка применения преобразований, поворот вокруг оси через вершину.
+Расчёты выполнены на Python с использованием NumPy, Matplotlib и SciPy.
+Все преобразования координат реализованы умножением на матрицы.
+Задания 6--7 о камере и перспективе в этой версии ещё не представлены.
 \unnumsection{Исходные данные}
 \begin{itemize}
-""" + data + "\n\\end{itemize}\n" + markdown(draft) + r"""
-\unnumsection{Заключение по заданиям 1--3}
+""" + data + "\n\\end{itemize}\n" + body + r"""
+\clearpage
+\unnumsection{Заключение по заданиям 1--5}
 Однородные координаты позволяют задавать масштабирование и перенос матрицами
 одного размера $4\times4$. Композиция выбранных масштабов восстанавливает
 размеры по $x$ и $z$, сохраняя растяжение по $y$. Два переноса складываются,
 а порядок переноса и масштабирования влияет на положение образа:
 в $ST$ масштабируется и смещение. Равенство определителей $TS$ и $ST$
 показывает одинаковое изменение объёма, но не равенство преобразований.
+Повороты, вычисленные с помощью матричной экспоненты,
+сохраняют расстояния, углы и объём. Перестановка двух поворотов меняет
+эквивалентную ось, хотя угол в рассмотренном случае совпадает.
+Композиция $T(M)R_v(\theta)T(-M)$ позволяет вращать фигуру вокруг оси
+через заданную точку, сохраняя точки этой оси неподвижными.
 \clearpage
 \unnumsection{Приложение А. Код блока A}
 \begingroup\setstretch{0.95}
 \VerbatimInput[breaklines,fontsize=\footnotesize,numbers=left,
 numbersep=8pt,xleftmargin=14pt,frame=single]{../code/block_a.py}
 \captionof{lstlisting}{Отрисовка фигур, масштабирование и перенос куба}
+\endgroup
+\clearpage
+\unnumsection{Приложение Б. Код заданий 4--5}
+\begingroup\setstretch{0.95}
+\VerbatimInput[breaklines,fontsize=\footnotesize,numbers=left,
+numbersep=8pt,xleftmargin=14pt,frame=single]{../block_45.py}
+\captionof{lstlisting}{Повороты вокруг оси через центр куба и через его вершину}
 \endgroup
 \end{document}
 """

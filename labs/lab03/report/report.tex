@@ -13,19 +13,22 @@
 \usepackage{adjustbox}
 \usepackage{etoolbox}
 \usepackage{fvextra}
-\patchcmd{\makegosttitle}{Выполнили:}{Выполнил:}{}{\errmessage{Не удалось оформить исполнителя}}
-\hypersetup{pdftitle={ЛР3 — Матрицы в 3D-графике. Блок A: задания 1–3},pdfauthor={Осипов А. П.}}
+\hypersetup{pdftitle={ЛР3 — Матрицы в 3D-графике. Задания 1–5},pdfauthor={Осипов А. П.; Глазков В. Н.; Прохоревич И. Б.}}
 \begin{document}
 \makegosttitle{3}{Матрицы в 3D-графике}
-{студент группы R3243 Осипов А.\,П.\\[8pt]
-Блок A: задания 1--3}{Догадин Е.\,В.}
+{студент группы R3243 Осипов А.\,П.\\[4pt]
+студент группы R3281 Глазков В.\,Н.\\[4pt]
+студент группы R3235 Прохоревич И.\,Б.\\[8pt]
+Промежуточная версия: задания 1--5}{Догадин Е.\,В.}
 \tableofcontents
 \clearpage
 \unnumsection{Введение}
-В отчёте представлен блок A лабораторной работы №3: отрисовка фигур
-в однородных координатах, масштабирование и перенос куба, сравнение
-порядка применения преобразований. Расчёты выполнены на Python с использованием
-NumPy и Matplotlib. Все преобразования координат реализованы умножением на матрицы.
+В отчёте представлены задания 1--5 лабораторной работы №3: отрисовка фигур
+в однородных координатах, масштабирование, перенос и вращение куба,
+сравнение порядка применения преобразований, поворот вокруг оси через вершину.
+Расчёты выполнены на Python с использованием NumPy, Matplotlib и SciPy.
+Все преобразования координат реализованы умножением на матрицы.
+Задания 6--7 о камере и перспективе в этой версии ещё не представлены.
 \unnumsection{Исходные данные}
 \begin{itemize}
 \item Исходный куб из методички: координаты вершин по каждой оси равны $-1$ или $1$,
@@ -179,8 +182,9 @@ S_2S_1=\operatorname{diag}(0.5\cdot2,\;1\cdot4,\;0.1\cdot10,\;1)
 Отдельные матрицы $S_1$ и $S_2$ применяются к исходному кубу, а третий
 результат соответствует их последовательному применению.
 
-\begin{table}[H]\centering
+\begin{table}[H]\centering\singlespacing\small
 \caption{Размеры куба после масштабирования}
+\label{tab:scale_sizes}
 \begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{llll}
 \toprule
@@ -315,8 +319,9 @@ ST=\begin{pmatrix}
 Например, $TSp=(3,1,-8,1)^T$, а $STp=(8,16,10,1)^T$.
 Разность декартовых координат равна $(5,15,18)$ для каждой вершины.
 
-\begin{table}[H]\centering
+\begin{table}[H]\centering\singlespacing\small
 \caption{Центры и размеры образов TS и ST}
+\label{tab:transform_order}
 \begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lll}
 \toprule
@@ -359,18 +364,910 @@ $(4,8,20)$, поскольку применяется один и тот же м
 изменение объёма — в $80$ раз. Само по себе равенство определителей
 не гарантирует одинаковых размеров или положения фигур.
 \end{minipage}\par
-\unnumsection{Заключение по заданиям 1--3}
+\clearpage
+\section{Задание 4. Вращение кубика}
+
+\subsection*{Постановка задачи}
+
+Требуется повернуть кубик вокруг произвольной оси, проходящей через его центр. Ось вращения задается вектором
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle v =
+\begin{bmatrix}
+v_x \\
+v_y \\
+v_z
+\end{bmatrix},$}\end{center}
+
+а угол поворота — величиной $\theta$. Матрица поворота определяется через матричную экспоненту:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_v(\theta) = e^{J\theta},
+\qquad
+J =
+\frac{1}{\|v\|}
+\begin{bmatrix}
+0 & -v_z & v_y & 0 \\
+v_z & 0 & -v_x & 0 \\
+-v_y & v_x & 0 & 0 \\
+0 & 0 & 0 & 0
+\end{bmatrix}.$}\end{center}
+
+Матрица $J$ имеет размер $4 \times 4$, поскольку вершины кубика заданы в однородных координатах. Последняя строка и последний столбец матрицы $J$ нулевые, поэтому в матричной экспоненте в правом нижнем углу стоит единица, а четвертая координата остается равной единице. Следовательно, преобразование является аффинным.
+
+\subsection*{Исходные данные}
+
+Кубик задан в однородных координатах. Его вершины являются столбцами матрицы
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle V =
+\begin{bmatrix}
+-1 & 1 & 1 & -1 & -1 & 1 & 1 & -1 \\
+-1 & -1 & 1 & 1 & -1 & -1 & 1 & 1 \\
+-1 & -1 & -1 & -1 & 1 & 1 & 1 & 1 \\
+1 & 1 & 1 & 1 & 1 & 1 & 1 & 1
+\end{bmatrix}.$}\end{center}
+
+Центр кубика совпадает с началом координат, поэтому ось вращения, проходящая через центр кубика, проходит через точку $(0,0,0)$, и отдельная матрица переноса не требуется.
+
+\subsection*{Общая структура матрицы поворота}
+
+Пусть
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle u =
+\frac{v}{\|v\|}
+=
+\begin{bmatrix}
+u_x \\
+u_y \\
+u_z
+\end{bmatrix},
+\qquad
+\|u\| = 1$}\end{center}
+
+— нормированный вектор оси вращения. Кососимметрическая матрица, соответствующая этому вектору, имеет вид
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle K =
+\begin{bmatrix}
+0 & -u_z & u_y & 0 \\
+u_z & 0 & -u_x & 0 \\
+-u_y & u_x & 0 & 0 \\
+0 & 0 & 0 & 0
+\end{bmatrix}.$}\end{center}
+
+Для нормированного вектора $u$ выполняется свойство
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle K^3 = -K.$}\end{center}
+
+Поэтому матричная экспонента приводится к формуле Родригеса:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_u(\theta) = e^{K\theta}
+=
+I + \sin\theta \, K + (1-\cos\theta)K^2.$}\end{center}
+
+Для компактной записи положим $c=\cos\theta$, $s=\sin\theta$, $d=1-c$. Матрица поворота вокруг произвольной оси, проходящей через начало координат, имеет вид
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_u(\theta) =
+\begin{bmatrix}
+c+u_x^2d & u_xu_yd-u_zs & u_xu_zd+u_ys & 0 \\
+u_yu_xd+u_zs & c+u_y^2d & u_yu_zd-u_xs & 0 \\
+u_zu_xd-u_ys & u_zu_yd+u_xs & c+u_z^2d & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+В программе матрица вычисляется напрямую по формуле $R_v(\theta)=e^{J\theta}$ с помощью \texttt{scipy.linalg.expm}; формула Родригеса приведена выше для аналитической записи этой же матрицы.
+
+\subsection*{Матрицы поворота вокруг координатных осей}
+
+Частными случаями общей формулы являются повороты вокруг осей $x$, $y$ и $z$.
+
+Поворот вокруг оси $x$:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_x(\theta) =
+\begin{bmatrix}
+1 & 0 & 0 & 0 \\
+0 & \cos\theta & -\sin\theta & 0 \\
+0 & \sin\theta & \cos\theta & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+Поворот вокруг оси $y$:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_y(\theta) =
+\begin{bmatrix}
+\cos\theta & 0 & \sin\theta & 0 \\
+0 & 1 & 0 & 0 \\
+-\sin\theta & 0 & \cos\theta & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+Поворот вокруг оси $z$:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_z(\theta) =
+\begin{bmatrix}
+\cos\theta & -\sin\theta & 0 & 0 \\
+\sin\theta & \cos\theta & 0 & 0 \\
+0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+Эти матрицы получаются из общей формулы при выборе единичных векторов
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle e_x =
+\begin{bmatrix}
+1 \\
+0 \\
+0
+\end{bmatrix},
+\qquad
+e_y =
+\begin{bmatrix}
+0 \\
+1 \\
+0
+\end{bmatrix},
+\qquad
+e_z =
+\begin{bmatrix}
+0 \\
+0 \\
+1
+\end{bmatrix}.$}\end{center}
+
+\subsection*{Выбранные оси и углы поворота}
+
+Для выполнения задания выбраны две произвольные оси вращения и два угла поворота.
+
+Первая ось:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle v_1 =
+\begin{bmatrix}
+1 \\
+1 \\
+0
+\end{bmatrix},
+\qquad
+\theta_1 = \frac{\pi}{2},
+\qquad
+u_1 =
+\frac{v_1}{\|v_1\|}
+=
+\begin{bmatrix}
+\frac{1}{\sqrt{2}} \\
+\frac{1}{\sqrt{2}} \\
+0
+\end{bmatrix}.$}\end{center}
+
+Ось $v_1$ проходит через центр кубика и направлена вдоль диагонали плоскости $xy$.
+
+Вторая ось:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle v_2 =
+\begin{bmatrix}
+0 \\
+1 \\
+1
+\end{bmatrix},
+\qquad
+\theta_2 = \frac{\pi}{3},
+\qquad
+u_2 =
+\frac{v_2}{\|v_2\|}
+=
+\begin{bmatrix}
+0 \\
+\frac{1}{\sqrt{2}} \\
+\frac{1}{\sqrt{2}}
+\end{bmatrix}.$}\end{center}
+
+Ось $v_2$ проходит через центр кубика и направлена вдоль диагонали плоскости $yz$.
+
+\subsection*{Матрица первого поворота}
+
+Для оси $v_1$ и угла $\theta_1=\frac{\pi}{2}$ имеем
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle \sin\frac{\pi}{2} = 1,
+\qquad
+\cos\frac{\pi}{2} = 0.$}\end{center}
+
+Подстановка в общую формулу дает
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle \begin{gathered}
+R_1 =
+\begin{bmatrix}
+\frac{1}{2} & \frac{1}{2} & \frac{1}{\sqrt{2}} & 0 \\
+\frac{1}{2} & \frac{1}{2} & -\frac{1}{\sqrt{2}} & 0 \\
+-\frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} & 0 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix} \\[4pt]
+\approx \begin{bmatrix}
+0.500000 & 0.500000 & 0.707107 & 0 \\
+0.500000 & 0.500000 & -0.707107 & 0 \\
+-0.707107 & 0.707107 & 0.000000 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.
+\end{gathered}$}\end{center}
+
+Эта матрица выполняет поворот кубика на $90^\circ$ вокруг оси, направленной вдоль вектора $v_1$.
+
+Проверим, что точка на оси вращения остается неподвижной. Возьмем точку
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle p =
+\begin{bmatrix}
+1 \\
+1 \\
+0 \\
+1
+\end{bmatrix}.$}\end{center}
+
+Тогда
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_1 p =
+\begin{bmatrix}
+1 \\
+1 \\
+0 \\
+1
+\end{bmatrix}
+= p.$}\end{center}
+
+Следовательно, прямая, проходящая через начало координат вдоль вектора $v_1$, действительно является осью вращения.
+
+\subsection*{Матрица второго поворота}
+
+Для оси $v_2$ и угла $\theta_2=\frac{\pi}{3}$ имеем
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle \sin\frac{\pi}{3} = \frac{\sqrt{3}}{2},
+\qquad
+\cos\frac{\pi}{3} = \frac{1}{2}.$}\end{center}
+
+После подстановки в общую формулу получаем
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle \begin{gathered}
+R_2 =
+\begin{bmatrix}
+\frac{1}{2} & -\frac{\sqrt{6}}{4} & \frac{\sqrt{6}}{4} & 0 \\
+\frac{\sqrt{6}}{4} & \frac{3}{4} & \frac{1}{4} & 0 \\
+-\frac{\sqrt{6}}{4} & \frac{1}{4} & \frac{3}{4} & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix} \\[4pt]
+\approx \begin{bmatrix}
+0.500000 & -0.612372 & 0.612372 & 0 \\
+0.612372 & 0.750000 & 0.250000 & 0 \\
+-0.612372 & 0.250000 & 0.750000 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.
+\end{gathered}$}\end{center}
+
+Эта матрица выполняет поворот кубика на $60^\circ$ вокруг оси, направленной вдоль вектора $v_2$.
+
+Проверка неподвижности оси:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle p =
+\begin{bmatrix}
+0 \\
+1 \\
+1 \\
+1
+\end{bmatrix},
+\qquad
+R_2 p =
+\begin{bmatrix}
+0 \\
+1 \\
+1 \\
+1
+\end{bmatrix}
+= p.$}\end{center}
+
+Следовательно, ось вращения задана корректно.
+
+\subsection*{Композиция двух поворотов}
+
+Поскольку вершины кубика рассматриваются как столбцы матрицы $V$, преобразование применяется умножением матрицы слева:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle V' = R V.$}\end{center}
+
+Если сначала выполняется поворот $R_1$, а затем $R_2$, итоговая матрица имеет вид
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{1 \to 2} = R_2 R_1.$}\end{center}
+
+Если сначала выполняется поворот $R_2$, а затем $R_1$, итоговая матрица имеет вид
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{2 \to 1} = R_1 R_2.$}\end{center}
+
+В общем случае повороты в трехмерном пространстве не коммутируют, поэтому $R_2R_1 \neq R_1R_2$.
+
+\subsection*{Композиция $M_{1 \to 2} = R_2R_1$}
+
+Сначала выполняется поворот вокруг оси $v_1$ на угол $\theta_1=\frac{\pi}{2}$, затем — поворот вокруг оси $v_2$ на угол $\theta_2=\frac{\pi}{3}$. Численно:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{1 \to 2} \approx
+\begin{bmatrix}
+-0.489199 & 0.376826 & 0.786566 & 0 \\
+0.504410 & 0.857963 & -0.097317 & 0 \\
+-0.711516 & 0.349144 & -0.609789 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+Результирующее преобразование также является поворотом вокруг некоторой оси. Нормированный вектор эквивалентной оси вращения приближенно равен
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle u_{1 \to 2} \approx
+\begin{bmatrix}
+0.2847 \\
+0.9552 \\
+0.0813
+\end{bmatrix}.$}\end{center}
+
+\subsection*{Композиция $M_{2 \to 1} = R_1R_2$}
+
+Сначала выполняется поворот вокруг оси $v_2$ на угол $\theta_2=\frac{\pi}{3}$, затем — поворот вокруг оси $v_1$ на угол $\theta_1=\frac{\pi}{2}$. Численно:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{2 \to 1} \approx
+\begin{bmatrix}
+0.123174 & 0.245590 & 0.961516 & 0 \\
+0.989199 & -0.107963 & -0.099144 & 0 \\
+0.079459 & 0.963343 & -0.256236 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+Нормированный вектор эквивалентной оси вращения приближенно равен
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle u_{2 \to 1} \approx
+\begin{bmatrix}
+0.6774 \\
+0.5624 \\
+0.4741
+\end{bmatrix}.$}\end{center}
+
+\subsection*{Демонстрация некоммутативности поворотов}
+
+Сравним полученные матрицы:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{1 \to 2} = R_2R_1,
+\qquad
+M_{2 \to 1} = R_1R_2.$}\end{center}
+
+Видно, что $M_{1 \to 2} \neq M_{2 \to 1}$. Например, элемент в первой строке и первом столбце:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle (M_{1 \to 2})_{11} \approx -0.489199,
+\qquad
+(M_{2 \to 1})_{11} \approx 0.123174.$}\end{center}
+
+Следовательно, порядок применения поворотов существенно влияет на итоговое положение кубика: последовательные повороты вокруг различных осей в трехмерном пространстве не коммутируют.
+
+\subsection*{Результаты выполнения программы}
+
+На каждом графике показаны исходный кубик (синий, полупрозрачный), кубик после применения соответствующей матрицы (красный), пунктирная ось вращения и вектор, коллинеарный этой оси. Для композиций на графиках показана эквивалентная ось результирующего поворота.
+
+После применения любой из матриц четвертая однородная координата остается равной единице, поэтому в таблицах приведены только декартовы координаты $x$, $y$ и $z$.
+
+\clearpage
+\subsection*{Поворот вокруг оси $v_1$}
+
+Применяется матрица $R_1$. Ось вращения — $v_1=(1,1,0)^T$, угол поворота — $\theta_1=\frac{\pi}{2}$. Ожидаемый результат: кубик повернут на $90^\circ$ вокруг диагонали плоскости $xy$.
+
+Результат показан на рисунке~\ref{fig:p4A}, координаты вершин приведены в таблице~\ref{tab:p4A}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\linewidth]{figures/p4A.png}
+\caption{Поворот на $90^\circ$ вокруг оси $v_1=(1,1,0)$}
+\label{fig:p4A}
+\end{figure}
+
+
+\begin{table}[H]\centering\singlespacing\small
+\caption{Координаты вершин после применения $R_1$}
+\label{tab:p4A}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llll}
+\toprule
+№ вершины & $x$ & $y$ & $z$ \\
+\midrule
+1 & -1.707 & -0.293 & 0.000 \\
+2 & -0.707 & 0.707 & -1.414 \\
+3 & 0.293 & 1.707 & 0.000 \\
+4 & -0.707 & 0.707 & 1.414 \\
+5 & -0.293 & -1.707 & 0.000 \\
+6 & 0.707 & -0.707 & -1.414 \\
+7 & 1.707 & 0.293 & 0.000 \\
+8 & 0.707 & -0.707 & 1.414 \\
+\bottomrule\end{tabular}\end{adjustbox}\end{table}
+
+\clearpage
+\subsection*{Поворот вокруг оси $v_2$}
+
+Применяется матрица $R_2$. Ось вращения — $v_2=(0,1,1)^T$, угол поворота — $\theta_2=\frac{\pi}{3}$. Ожидаемый результат: кубик повернут на $60^\circ$ вокруг диагонали плоскости $yz$.
+
+Результат показан на рисунке~\ref{fig:p4B}, координаты вершин приведены в таблице~\ref{tab:p4B}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\linewidth]{figures/p4B.png}
+\caption{Поворот на $60^\circ$ вокруг оси $v_2=(0,1,1)$}
+\label{fig:p4B}
+\end{figure}
+
+
+\begin{table}[H]\centering\singlespacing\small
+\caption{Координаты вершин после применения $R_2$}
+\label{tab:p4B}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llll}
+\toprule
+№ вершины & $x$ & $y$ & $z$ \\
+\midrule
+1 & -0.500 & -1.612 & -0.388 \\
+2 & 0.500 & -0.388 & -1.612 \\
+3 & -0.725 & 1.112 & -1.112 \\
+4 & -1.725 & -0.112 & 0.112 \\
+5 & 0.725 & -1.112 & 1.112 \\
+6 & 1.725 & 0.112 & -0.112 \\
+7 & 0.500 & 1.612 & 0.388 \\
+8 & -0.500 & 0.388 & 1.612 \\
+\bottomrule\end{tabular}\end{adjustbox}\end{table}
+
+\clearpage
+\subsection*{Композиция $M_{1 \to 2}=R_2R_1$}
+
+Порядок преобразований: сначала поворот вокруг оси $v_1$, затем поворот вокруг оси $v_2$. Эквивалентная ось вращения — $u_{1 \to 2}\approx(0.2847,\;0.9552,\;0.0813)^T$.
+
+Результат показан на рисунке~\ref{fig:p4AB}, координаты вершин приведены в таблице~\ref{tab:p4AB}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\linewidth]{figures/p4AB.png}
+\caption{Композиция поворотов: сначала $R_1$, затем $R_2$}
+\label{fig:p4AB}
+\end{figure}
+
+
+\begin{table}[H]\centering\singlespacing\small
+\caption{Координаты вершин после применения $M_{1 \to 2}=R_2R_1$}
+\label{tab:p4AB}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llll}
+\toprule
+№ вершины & $x$ & $y$ & $z$ \\
+\midrule
+1 & -0.674 & -1.265 & 0.972 \\
+2 & -1.653 & -0.256 & -0.451 \\
+3 & -0.899 & 1.460 & 0.247 \\
+4 & 0.079 & 0.451 & 1.670 \\
+5 & 0.899 & -1.460 & -0.247 \\
+6 & -0.079 & -0.451 & -1.670 \\
+7 & 0.674 & 1.265 & -0.972 \\
+8 & 1.653 & 0.256 & 0.451 \\
+\bottomrule\end{tabular}\end{adjustbox}\end{table}
+
+\clearpage
+\subsection*{Композиция $M_{2 \to 1}=R_1R_2$}
+
+Порядок преобразований: сначала поворот вокруг оси $v_2$, затем поворот вокруг оси $v_1$. Эквивалентная ось вращения — $u_{2 \to 1}\approx(0.6774,\;0.5624,\;0.4741)^T$.
+
+Результат показан на рисунке~\ref{fig:p4BA}, координаты вершин приведены в таблице~\ref{tab:p4BA}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\linewidth]{figures/p4BA.png}
+\caption{Композиция поворотов: сначала $R_2$, затем $R_1$}
+\label{fig:p4BA}
+\end{figure}
+
+
+\begin{table}[H]\centering\singlespacing\small
+\caption{Координаты вершин после применения $M_{2 \to 1}=R_1R_2$}
+\label{tab:p4BA}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llll}
+\toprule
+№ вершины & $x$ & $y$ & $z$ \\
+\midrule
+1 & -1.330 & -0.782 & -0.787 \\
+2 & -1.084 & 1.196 & -0.628 \\
+3 & -0.593 & 0.980 & 1.299 \\
+4 & -0.839 & -0.998 & 1.140 \\
+5 & 0.593 & -0.980 & -1.299 \\
+6 & 0.839 & 0.998 & -1.140 \\
+7 & 1.330 & 0.782 & 0.787 \\
+8 & 1.084 & -1.196 & 0.628 \\
+\bottomrule\end{tabular}\end{adjustbox}\end{table}
+
+\subsection*{Анализ полученных результатов}
+
+\textbf{Влияние оси вращения.} Ось вращения определяет неподвижную прямую в пространстве: все точки, лежащие на ней, остаются на месте. Для оси $v_1$ это прямая
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle (0,0,0) + t(1,1,0),$}\end{center}
+
+а для оси $v_2$ — прямая
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle (0,0,0) + t(0,1,1).$}\end{center}
+
+Ось $v_1$ проходит через середины двух противоположных вертикальных ребер кубика, а ось $v_2$ — через середины двух противоположных ребер, параллельных оси $x$. Ни одна вершина кубика на этих осях не лежит, поэтому при выбранных углах вершины не остаются неподвижными.
+
+\textbf{Влияние угла поворота.} Угол $\theta$ задает величину поворота вокруг выбранной оси:
+
+\begin{itemize}
+\item при $\theta=0$ кубик остается неподвижным;
+\item при $\theta=\frac{\pi}{2}$ выполняется поворот на $90^\circ$;
+\item при $\theta=\pi$ — поворот на $180^\circ$;
+\item при $\theta=2\pi$ кубик возвращается в исходное положение.
+\end{itemize}
+
+При выбранных углах $90^\circ$ и $60^\circ$ кубик не переходит в себя, а занимает новое положение. При этом преобразование является движением: расстояния между вершинами сохраняются. Например, расстояние между вершинами 1 и 2 после применения $R_1$ остается равным 2.
+
+\textbf{Влияние порядка преобразований.} Матрицы $M_{1 \to 2}=R_2R_1$ и $M_{2 \to 1}=R_1R_2$ различны, поэтому итоговая ориентация кубика зависит от порядка поворотов. При этом
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{2 \to 1} = R_1M_{1 \to 2}R_1^{-1},$}\end{center}
+
+то есть матрицы подобны. Угол поворота определяется следом верхнего левого блока $R$ размера $3\times3$:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle \theta = \arccos\left(\frac{\operatorname{tr}R - 1}{2}\right).$}\end{center}
+
+Для обеих матриц $\operatorname{tr}R \approx -0.241025$. Поскольку следы подобных матриц совпадают, у обеих композиций одинаковый угол поворота $128.35^\circ$, но эквивалентные оси различны:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle u_{1 \to 2} \approx
+\begin{bmatrix}
+0.2847 \\
+0.9552 \\
+0.0813
+\end{bmatrix},
+\qquad
+u_{2 \to 1} \approx
+\begin{bmatrix}
+0.6774 \\
+0.5624 \\
+0.4741
+\end{bmatrix}.$}\end{center}
+
+Таким образом, при одном и том же суммарном угле поворота кубик оказывается в разных положениях.
+
+\textbf{Проверка корректности матриц поворота.} Для всех четырех матриц верхний блок $3 \times 3$ ортогонален:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R^T R = I,$}\end{center}
+
+а его определитель равен единице:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle \det R = 1.$}\end{center}
+
+Это означает, что преобразования сохраняют длины, углы, объемы и ориентацию пространства. Кроме того, для осей выполняются равенства
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_1
+\begin{bmatrix}
+1 \\
+1 \\
+0 \\
+0
+\end{bmatrix}
+=
+\begin{bmatrix}
+1 \\
+1 \\
+0 \\
+0
+\end{bmatrix},
+\qquad
+R_2
+\begin{bmatrix}
+0 \\
+1 \\
+1 \\
+0
+\end{bmatrix}
+=
+\begin{bmatrix}
+0 \\
+1 \\
+1 \\
+0
+\end{bmatrix}.$}\end{center}
+
+Здесь направления осей записаны в однородных координатах с нулевой четвертой компонентой. Следовательно, векторы $v_1$ и $v_2$ действительно являются собственными векторами соответствующих матриц с собственным числом 1, то есть задают оси вращения.
+
+\subsection*{Восстановление оси вращения по матрице поворота}
+
+Для композиции поворотов эквивалентную ось можно восстановить непосредственно из матрицы. Если
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R =
+\begin{bmatrix}
+r_{11} & r_{12} & r_{13} \\
+r_{21} & r_{22} & r_{23} \\
+r_{31} & r_{32} & r_{33}
+\end{bmatrix},$}\end{center}
+
+то вектор оси вращения пропорционален вектору
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle u \sim
+\begin{bmatrix}
+r_{32} - r_{23} \\
+r_{13} - r_{31} \\
+r_{21} - r_{12}
+\end{bmatrix}.$}\end{center}
+
+После нормировки
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle u = \frac{u}{\|u\|}.$}\end{center}
+
+Именно так в программе получены оси $u_{1 \to 2}$ и $u_{2 \to 1}$. Формула применима при $\sin\theta \neq 0$; для углов $0$ и $\pi$ вектор оси находится через собственный вектор матрицы $R$ с собственным числом 1.
+
+\par\noindent\begin{minipage}{\linewidth}
+\subsection*{Вывод по заданию 4}
+
+В задании построена матрица поворота вокруг произвольной оси, проходящей через центр кубика. Матричная экспонента $e^{J\theta}$ сведена к формуле Родригеса, а для осей $x$, $y$ и $z$ получены частные случаи $R_x$, $R_y$, $R_z$.
+
+Для двух выбранных осей и углов построены матрицы $R_1$ и $R_2$, а также две их композиции — $R_2R_1$ и $R_1R_2$. Расчеты и результаты программы показывают, что матрицы композиций различны: при одинаковом угле $128.35^\circ$ оси вращения не совпадают. Следовательно, порядок применения поворотов влияет на итоговую ориентацию кубика.
+
+Корректность матриц подтверждена проверками: $R^TR=I$, $\det R=1$, а векторы $v_1$ и $v_2$ остаются неподвижными. На всех графиках дополнительно показан вектор, коллинеарный оси вращения.
+
+\end{minipage}\par
+\section{Задание 5. Вращение кубика вокруг вершины}
+
+\subsection*{Общая формула поворота вокруг оси, проходящей через точку}
+
+Пусть ось вращения проходит через точку
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M =
+\begin{bmatrix}
+x_0 \\
+y_0 \\
+z_0
+\end{bmatrix}$}\end{center}
+
+и имеет направление $v$, а угол поворота равен $\theta$. Чтобы свести такое вращение к уже известному повороту вокруг начала координат, выполним три аффинных преобразования.
+
+1. Перенесем объект так, чтобы точка $M$ совпала с началом координат:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle T(-M) =
+\begin{bmatrix}
+1 & 0 & 0 & -x_0 \\
+0 & 1 & 0 & -y_0 \\
+0 & 0 & 1 & -z_0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+2. Повернем объект вокруг начала координат вокруг оси с направлением $v$ на угол $\theta$:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_v(\theta).$}\end{center}
+
+3. Вернем точку $M$ на место обратным переносом:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle T(M) =
+\begin{bmatrix}
+1 & 0 & 0 & x_0 \\
+0 & 1 & 0 & y_0 \\
+0 & 0 & 1 & z_0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+Итоговая матрица преобразования имеет вид
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{\text{pivot}} = T(M)\,R_v(\theta)\,T(-M).$}\end{center}
+
+Обозначим через $R$ верхний левый блок $3 \times 3$ матрицы $R_v(\theta)$. Тогда
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{\text{pivot}} =
+\begin{bmatrix}
+R & M - RM \\
+\mathbf{0}_{1 \times 3} & 1
+\end{bmatrix}.$}\end{center}
+
+Действительно,
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle T(M)
+\begin{bmatrix}
+R & 0 \\
+\mathbf{0}_{1 \times 3} & 1
+\end{bmatrix}
+T(-M)
+=
+\begin{bmatrix}
+R & M - RM \\
+\mathbf{0}_{1 \times 3} & 1
+\end{bmatrix}.$}\end{center}
+
+Вектор $M - RM$ — это сдвиг, который компенсирует поворот точки $M$ вокруг начала координат. Поэтому
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{\text{pivot}}
+\begin{bmatrix}
+M \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix}
+M \\
+1
+\end{bmatrix},$}\end{center}
+
+то есть выбранная точка оси остается неподвижной. Матрица $R$ — это матрица поворота вокруг начала координат, построенная в задании 4.
+
+\subsection*{Выбранная матрица преобразования}
+
+Выберем вершину кубика
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M =
+\begin{bmatrix}
+1 \\
+1 \\
+1
+\end{bmatrix}.$}\end{center}
+
+В однородных координатах:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M =
+\begin{bmatrix}
+1 \\
+1 \\
+1 \\
+1
+\end{bmatrix}.$}\end{center}
+
+Ось вращения зададим направлением
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle v =
+\begin{bmatrix}
+1 \\
+1 \\
+0
+\end{bmatrix},
+\qquad
+\theta = \frac{\pi}{2},
+\qquad
+u =
+\frac{v}{\|v\|}
+=
+\begin{bmatrix}
+\frac{1}{\sqrt{2}} \\
+\frac{1}{\sqrt{2}} \\
+0
+\end{bmatrix}.$}\end{center}
+
+Ось проходит через вершину $M$ и описывается уравнением
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle L(t) = M + tu
+=
+\begin{bmatrix}
+1 \\
+1 \\
+1
+\end{bmatrix}
++
+t
+\begin{bmatrix}
+\frac{1}{\sqrt{2}} \\
+\frac{1}{\sqrt{2}} \\
+0
+\end{bmatrix}.$}\end{center}
+
+Матрица поворота вокруг этой оси на угол $\theta=\frac{\pi}{2}$:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle R_v\left(\frac{\pi}{2}\right) =
+\begin{bmatrix}
+\frac{1}{2} & \frac{1}{2} & \frac{1}{\sqrt{2}} & 0 \\
+\frac{1}{2} & \frac{1}{2} & -\frac{1}{\sqrt{2}} & 0 \\
+-\frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} & 0 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+Матрицы переносов:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle T(-M) =
+\begin{bmatrix}
+1 & 0 & 0 & -1 \\
+0 & 1 & 0 & -1 \\
+0 & 0 & 1 & -1 \\
+0 & 0 & 0 & 1
+\end{bmatrix},
+\qquad
+T(M) =
+\begin{bmatrix}
+1 & 0 & 0 & 1 \\
+0 & 1 & 0 & 1 \\
+0 & 0 & 1 & 1 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.$}\end{center}
+
+После перемножения получаем
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle \begin{gathered}
+M_{\text{pivot}} = T(M)\,R_v\left(\frac{\pi}{2}\right)\,T(-M)
+=
+\begin{bmatrix}
+\frac{1}{2} & \frac{1}{2} & \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \\
+\frac{1}{2} & \frac{1}{2} & -\frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\
+-\frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} & 0 & 1 \\
+0 & 0 & 0 & 1
+\end{bmatrix} \\[4pt]
+\approx \begin{bmatrix}
+0.500000 & 0.500000 & 0.707107 & -0.707107 \\
+0.500000 & 0.500000 & -0.707107 & 0.707107 \\
+-0.707107 & 0.707107 & 0.000000 & 1.000000 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.
+\end{gathered}$}\end{center}
+
+Проверим неподвижность выбранной вершины:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{\text{pivot}}
+\begin{bmatrix}
+1 \\
+1 \\
+1 \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix}
+1 \\
+1 \\
+1 \\
+1
+\end{bmatrix}.$}\end{center}
+
+Следовательно, вершина $M=(1,1,1)$ остается на месте. На той же прямой лежит вершина $(-1,-1,1)$, поэтому она также неподвижна.
+
+\subsection*{Результаты выполнения программы}
+
+На рисунке~\ref{fig:p5} показаны исходный кубик (синий, полупрозрачный), кубик после применения $M_{\text{pivot}}$ (красный) и ось вращения, проходящая через вершину $M=(1,1,1)$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.72\linewidth]{figures/p5.png}
+\caption{Поворот вокруг оси через вершину $M=(1,1,1)$}
+\label{fig:p5}
+\end{figure}
+
+
+\begin{table}[H]\centering\singlespacing\small
+\caption{Координаты вершин после применения $M_{\text{pivot}}$}
+\label{tab:p5}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llll}
+\toprule
+№ вершины & $x$ & $y$ & $z$ \\
+\midrule
+1 & -2.414 & 0.414 & 1.000 \\
+2 & -1.414 & 1.414 & -0.414 \\
+3 & -0.414 & 2.414 & 1.000 \\
+4 & -1.414 & 1.414 & 2.414 \\
+5 & -1.000 & -1.000 & 1.000 \\
+6 & 0.000 & 0.000 & -0.414 \\
+7 & 1.000 & 1.000 & 1.000 \\
+8 & 0.000 & 0.000 & 2.414 \\
+\bottomrule\end{tabular}\end{adjustbox}\end{table}
+
+Верхний блок матрицы ортогонален: $R^TR=I$, а его определитель равен единице: $\det R=1$. Четвертая однородная координата всех вершин остается равной единице, поэтому преобразование является аффинным. Вершины 5 и 7 не меняют положения, поскольку лежат на оси вращения.
+
+\par\noindent\begin{minipage}{\linewidth}
+\subsection*{Вывод по заданию 5}
+
+Получена общая формула матрицы поворота вокруг оси с направлением $v$, проходящей через точку $M(x_0,y_0,z_0)$:
+
+\begin{center}\adjustbox{max width=\linewidth}{$\displaystyle M_{\text{pivot}} = T(M)\,R_v(\theta)\,T(-M).$}\end{center}
+
+Для вершины $M=(1,1,1)$, оси $v=(1,1,0)$ и угла $\theta=\frac{\pi}{2}$ построена конкретная матрица $M_{\text{pivot}}$. Она переводит кубик в новое положение, оставляя выбранную вершину неподвижной. Результат подтвержден графиком и координатами вершин: преобразование является движением, а ось вращения проходит через вершину кубика.
+\end{minipage}\par
+\clearpage
+\unnumsection{Заключение по заданиям 1--5}
 Однородные координаты позволяют задавать масштабирование и перенос матрицами
 одного размера $4\times4$. Композиция выбранных масштабов восстанавливает
 размеры по $x$ и $z$, сохраняя растяжение по $y$. Два переноса складываются,
 а порядок переноса и масштабирования влияет на положение образа:
 в $ST$ масштабируется и смещение. Равенство определителей $TS$ и $ST$
 показывает одинаковое изменение объёма, но не равенство преобразований.
+Повороты, вычисленные с помощью матричной экспоненты,
+сохраняют расстояния, углы и объём. Перестановка двух поворотов меняет
+эквивалентную ось, хотя угол в рассмотренном случае совпадает.
+Композиция $T(M)R_v(\theta)T(-M)$ позволяет вращать фигуру вокруг оси
+через заданную точку, сохраняя точки этой оси неподвижными.
 \clearpage
 \unnumsection{Приложение А. Код блока A}
 \begingroup\setstretch{0.95}
 \VerbatimInput[breaklines,fontsize=\footnotesize,numbers=left,
 numbersep=8pt,xleftmargin=14pt,frame=single]{../code/block_a.py}
 \captionof{lstlisting}{Отрисовка фигур, масштабирование и перенос куба}
+\endgroup
+\clearpage
+\unnumsection{Приложение Б. Код заданий 4--5}
+\begingroup\setstretch{0.95}
+\VerbatimInput[breaklines,fontsize=\footnotesize,numbers=left,
+numbersep=8pt,xleftmargin=14pt,frame=single]{../block_45.py}
+\captionof{lstlisting}{Повороты вокруг оси через центр куба и через его вершину}
 \endgroup
 \end{document}
